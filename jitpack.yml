@@ -1,0 +1,5 @@
+# JitPack builds a tag with `./gradlew publishToMavenLocal`; Gradle 9 needs Java 17 or newer.
+jdk:
+  - openjdk21
+install:
+  - ./gradlew --no-daemon -x test -x integrationTest :beezy-protocol:publishToMavenLocal :beezy-api:publishToMavenLocal

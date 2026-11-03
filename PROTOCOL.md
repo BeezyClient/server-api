@@ -59,6 +59,16 @@ u8   kind     see the tables
 - `duration` is a `u32` of milliseconds after which the client removes the thing by itself; 0 means
   "until removed". At most 24 h. Counted from when the message arrives.
 - `pos` is three `f64` (x, y, z), finite.
+- `component` is a text component: a `u16` byte length (1-4096) then that many bytes of UTF-8
+  JSON, in Minecraft's JSON text format (what Adventure's `GsonComponentSerializer` writes:
+  `text`, `extra`, `color` as a name or `#rrggbb`, `bold`, `italic`, `underlined`,
+  `strikethrough`, `obfuscated`, `font`, `translate`/`with`, `keybind`, `score` and `selector`
+  are shown as plain text). As in vanilla, a bare JSON string is a plain text component and an
+  array is its first element with the rest appended as `extra`: Adventure writes plain text as
+  `"Steve"` and plain children as strings (`"extra":["50%"]`). The client draws what its Minecraft version can: hex colours become
+  the nearest named colour before 1.16, an unknown font is the default one, click and hover
+  events are ignored (nothing in this API is clickable). Invalid JSON or nesting deeper than 16
+  levels drops the whole message, like any malformed field.
 - A whole message is at most **32 768 bytes**. Longer, malformed (cut short, invalid UTF-8),
   unknown `format`, a field over its cap or outside its range (a level, mode or flag with a value
   the table does not list, seconds outside 1-30, min y above max y, a position that is not a finite
@@ -120,12 +130,12 @@ The Hello and the transfer result are the only things the client ever sends.
 | 100 | Glow set | `uuid` entity, `color` | That entity is drawn with an outline of that colour for this player only. 128 at once. |
 | 101 | Glow remove | `uuid` entity | |
 | 102 | Glow clear | (empty) | |
-| 110 | Hologram set | `str` id (≤ 32), `pos`, `world`, `u8` count (1-8), then that many `str` lines (≤ 128 each, `§` codes kept), `duration` | Floating text lines, top first, facing the player. 64 at once. |
+| 110 | Hologram set | `str` id (≤ 32), `pos`, `world`, `u8` count (1-8), then that many `component` lines, `duration` | Floating text lines, top first, facing the player. 64 at once. |
 | 111 | Hologram remove | `str` id | |
 | 112 | Holograms clear | (empty) | |
 | 120 | Module settings | `u8` count (1-64), then per entry: `str` module (≤ 32, a Beezy module id such as `zoom`), `str` option (≤ 32, a setting id of that module; empty = the module's on/off switch), `u8` type, value: type 0 bool (`u8` 0/1), 1 int (`i32`), 2 decimal (`f64`), 3 text (`str`, ≤ 64), 4 colour (`color`) | Overrides those settings while the player stays on this server; the player cannot change them meanwhile and the menu says "Set by this server". Unknown modules or options, a wrong type, or a value outside the setting's own range are skipped (one at a time, not the whole message). Sending the same module and option again replaces it. The Server Features module (`server_features`) cannot be set: those are the player's own switches over this API. |
 | 121 | Module settings release | `u8` count (0-64), then per entry: `str` module, `str` option (empty = the switch) | Gives those settings back to the player (their own value again). Count 0 releases all. |
-| 130 | Nametag set | `uuid` player, `u8` count (0-5), then that many `str` lines (≤ 64 each, `§` codes kept) | Replaces the nametag above that player, top line first, for this player only. Count 0 hides it. 128 at once. |
+| 130 | Nametag set | `uuid` player, `u8` count (0-5), then that many `component` lines | Replaces the nametag above that player, top line first, for this player only. Count 0 hides it. 128 at once. |
 | 131 | Nametag reset | `uuid` player | Back to the vanilla nametag. |
 | 132 | Nametags clear | (empty) | |
 | 140 | Nick hider | `str` nick (≤ 16) | The name Beezy's Nick Hider shows for the player themselves, in place of the one it would choose (for servers with `/nick`). Only applies when the player has Nick Hider on. |

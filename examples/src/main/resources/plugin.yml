@@ -1,0 +1,12 @@
+name: BeezyExample
+version: '1.0'
+main: dev.beezy.examples.ExamplePlugin
+description: A sample plugin using the Beezy server API.
+depend: [Beezy]
+api-version: '1.13'
+folia-supported: false
+commands:
+  lobby:
+    description: Go to the lobby (Beezy transfer).
+  round:
+    description: Start an example round.
