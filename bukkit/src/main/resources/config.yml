@@ -1,0 +1,28 @@
+# Beezy server plugin.
+# It learns only that a player uses Beezy, its version and the features they switched on.
+# No telemetry, no update checks: it never connects to anything.
+
+# Log every Hello and every malformed message.
+debug: false
+
+# A notification for Beezy players when they join (only once per visit).
+welcome:
+  enabled: true
+  title: "Welcome"          # at most 32 bytes
+  text: "This server supports Beezy features."   # at most 160 bytes
+  seconds: 5                # 1 to 30
+
+# Discord rich presence sent to Beezy players when they join (only shown to Discord if they
+# enabled Discord Rich Presence in Beezy). Leave game empty to send nothing; other plugins can
+# send their own through the API.
+rich-presence:
+  game: ""                  # e.g. "My Server", at most 32 bytes
+  mode: ""                  # at most 32 bytes
+  state: ""                 # e.g. "In the lobby", at most 64 bytes
+
+# Send each Beezy player the online members of their scoreboard team (minimap and direction HUD).
+# Not available on Folia.
+team-sync:
+  enabled: false
+  interval-ticks: 40        # how often, 20 ticks = 1 second (minimum 10)
+  positions: true           # include positions, so far-away mates still show
