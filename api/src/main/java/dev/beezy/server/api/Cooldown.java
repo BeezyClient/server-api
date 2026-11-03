@@ -26,7 +26,7 @@ public final class Cooldown {
      * @throws IllegalArgumentException if a field is over its cap or out of range
      */
     public Cooldown(String id, String label, String itemIcon, long durationMs) {
-        this.id = Check.str(id, MAX_ID, "cooldown id");
+        this.id = Check.id(id, MAX_ID, "cooldown id");
         this.label = Check.str(label, MAX_LABEL, "cooldown label");
         this.itemIcon = Check.optStr(itemIcon, MAX_ITEM_ICON, "cooldown item icon");
         this.durationMs = Check.range(durationMs, 0, MAX_COOLDOWN_MS, "cooldown duration ms");

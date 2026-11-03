@@ -25,6 +25,15 @@ final class Check {
         return value;
     }
 
+    /** An id: like {@link #str}, but empty is rejected too (the client drops a message with an empty id). */
+    static String id(String value, int cap, String field) {
+        str(value, cap, field);
+        if (value.isEmpty()) {
+            throw new IllegalArgumentException(field + " must not be empty");
+        }
+        return value;
+    }
+
     /** Like {@link #str} but null means empty. */
     static String optStr(String value, int cap, String field) {
         return str(value == null ? "" : value, cap, field);

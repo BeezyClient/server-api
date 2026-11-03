@@ -25,7 +25,7 @@ public final class Waypoint {
     private final boolean beam;
 
     private Waypoint(Builder b) {
-        this.id = Check.str(b.id, MAX_ID, "waypoint id");
+        this.id = Check.id(b.id, MAX_ID, "waypoint id");
         this.name = Check.str(b.name == null ? b.id : b.name, MAX_NAME, "waypoint name");
         this.x = b.x;
         this.y = b.y;

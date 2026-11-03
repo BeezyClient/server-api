@@ -47,6 +47,14 @@ class BeezyCodecTest {
     // ---- the example from the spec ----------------------------------------------------------
 
     @Test
+    void emptyIdsAreRefused() {
+        assertThrows(IllegalArgumentException.class, () -> BeezyCodec.waypointRemove(""));
+        assertThrows(IllegalArgumentException.class, () -> BeezyCodec.cooldownRemove(""));
+        assertThrows(IllegalArgumentException.class, () -> BeezyCodec.timerRemove(""));
+        assertThrows(IllegalArgumentException.class, () -> Waypoint.builder("").build());
+    }
+
+    @Test
     void specExampleNotification() {
         byte[] expected = {0x01, 0x14, 0x07, 'W', 'e', 'l', 'c', 'o', 'm', 'e',
                 0x09, 'H', 'a', 'v', 'e', ' ', 'f', 'u', 'n', '!', 0x00, 0x00, 0x05};

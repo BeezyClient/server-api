@@ -34,7 +34,7 @@ public final class Timer {
      * @throws IllegalArgumentException if a field is over its cap or out of range
      */
     public Timer(String id, String label, Mode mode, long startMs, boolean running) {
-        this.id = Check.str(id, MAX_ID, "timer id");
+        this.id = Check.id(id, MAX_ID, "timer id");
         this.label = Check.str(label, MAX_LABEL, "timer label");
         this.mode = Check.notNull(mode, "timer mode");
         this.startMs = Check.range(startMs, 0, 0xFFFFFFFFL, "timer start ms");

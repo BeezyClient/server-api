@@ -70,7 +70,7 @@ public final class BeezyCodec {
     public static byte[] waypoint(Waypoint w) {
         Check.notNull(w, "waypoint");
         return new Out(KIND_WAYPOINT_SET)
-                .str(w.id(), MAX_ID, "waypoint id")
+                .id(w.id(), MAX_ID, "waypoint id")
                 .str(w.name(), MAX_NAME, "waypoint name")
                 .i32(w.x()).i32(w.y()).i32(w.z())
                 .str(w.dimension(), MAX_DIMENSION, "waypoint dimension")
@@ -80,7 +80,7 @@ public final class BeezyCodec {
     }
 
     public static byte[] waypointRemove(String id) {
-        return new Out(KIND_WAYPOINT_REMOVE).str(id, MAX_ID, "waypoint id").done();
+        return new Out(KIND_WAYPOINT_REMOVE).id(id, MAX_ID, "waypoint id").done();
     }
 
     public static byte[] waypointsClear() {
@@ -100,7 +100,7 @@ public final class BeezyCodec {
     public static byte[] cooldown(Cooldown c) {
         Check.notNull(c, "cooldown");
         return new Out(KIND_COOLDOWN_SET)
-                .str(c.id(), MAX_ID, "cooldown id")
+                .id(c.id(), MAX_ID, "cooldown id")
                 .str(c.label(), MAX_LABEL, "cooldown label")
                 .str(c.itemIcon(), MAX_ITEM_ICON, "cooldown item icon")
                 .u32(Check.range(c.durationMs(), 0, MAX_COOLDOWN_MS, "cooldown duration ms"))
@@ -108,7 +108,7 @@ public final class BeezyCodec {
     }
 
     public static byte[] cooldownRemove(String id) {
-        return new Out(KIND_COOLDOWN_REMOVE).str(id, MAX_ID, "cooldown id").done();
+        return new Out(KIND_COOLDOWN_REMOVE).id(id, MAX_ID, "cooldown id").done();
     }
 
     public static byte[] cooldownsClear() {
@@ -118,7 +118,7 @@ public final class BeezyCodec {
     public static byte[] timer(Timer t) {
         Check.notNull(t, "timer");
         return new Out(KIND_TIMER_SET)
-                .str(t.id(), MAX_ID, "timer id")
+                .id(t.id(), MAX_ID, "timer id")
                 .str(t.label(), MAX_LABEL, "timer label")
                 .u8(t.mode().id())
                 .u32(t.startMs())
@@ -127,7 +127,7 @@ public final class BeezyCodec {
     }
 
     public static byte[] timerRemove(String id) {
-        return new Out(KIND_TIMER_REMOVE).str(id, MAX_ID, "timer id").done();
+        return new Out(KIND_TIMER_REMOVE).id(id, MAX_ID, "timer id").done();
     }
 
     public static byte[] timersClear() {
@@ -261,6 +261,10 @@ public final class BeezyCodec {
             u8(bytes.length);
             buf.write(bytes, 0, bytes.length);
             return this;
+        }
+
+        Out id(String s, int cap, String field) {
+            return str(Check.id(s, cap, field), cap, field);
         }
 
         byte[] done() {
