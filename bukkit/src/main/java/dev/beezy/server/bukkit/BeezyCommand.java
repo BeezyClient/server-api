@@ -5,7 +5,6 @@ import dev.beezy.server.api.BeezyServerApi;
 import dev.beezy.server.api.Feature;
 import dev.beezy.server.api.Hello;
 import dev.beezy.server.api.Notification;
-import dev.beezy.server.api.TransferResult;
 import dev.beezy.server.api.Waypoint;
 import java.awt.Color;
 import java.util.ArrayList;
@@ -228,8 +227,7 @@ final class BeezyCommand implements TabExecutor, Listener {
 
     @EventHandler
     public void onTransferResult(BeezyTransferResultEvent event) {
-        boolean done = event.getStatus() != TransferResult.Status.CONNECTING;
-        CommandSender sender = done ? transfers.remove(event.getId()) : transfers.get(event.getId());
+        CommandSender sender = transfers.remove(event.getId());
         if (sender == null || (sender instanceof Player && !((Player) sender).isOnline())) {
             return;
         }
@@ -241,11 +239,8 @@ final class BeezyCommand implements TabExecutor, Listener {
             case REFUSED:
                 sender.sendMessage(who + " has transfers switched off.");
                 break;
-            case INVALID_ADDRESS:
-                sender.sendMessage(who + ChatColor.RED + ": invalid address, or already transferred in the last minute.");
-                break;
             default:
-                sender.sendMessage(who + ChatColor.RED + " could not connect to " + event.getAddress() + ".");
+                sender.sendMessage(who + ChatColor.RED + ": invalid address, or already transferred in the last minute.");
         }
     }
 

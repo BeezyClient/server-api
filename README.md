@@ -12,7 +12,7 @@ player leaves. Every feature can be turned off by the player.
 
 **Privacy:** the plugin only learns that a player uses Beezy, its version, its Minecraft version,
 which of the features above they have switched on, and how a transfer this server asked for went
-(connecting, refused, invalid address, failed). It has no telemetry, no update checker, and never
+(connecting, refused, invalid address). It has no telemetry, no update checker, and never
 connects to anything.
 
 ## Install
@@ -64,7 +64,7 @@ Arguments with spaces can be quoted: `"Bed Wars"`. `*` means every Beezy player 
 | `/beezy waypoint <player\|*> remove <id>` / `clear` | `beezy.command.waypoint` | |
 | `/beezy beam <player\|*> add <id> <x> <y> <z> [#rrggbb\|color]` | `beezy.command.beam` | Adds or replaces a beam (colour: `#ffaa00` or a chat colour name like `red`). Same `~` and world rules as waypoints. |
 | `/beezy beam <player\|*> remove <id>` / `clear` | `beezy.command.beam` | |
-| `/beezy transfer <player\|*> <host[:port]>` | `beezy.command.transfer` | Sends the player to another server. You are told how it went (connecting, refused, invalid address, failed). |
+| `/beezy transfer <player\|*> <host[:port]>` | `beezy.command.transfer` | Sends the player to another server. You are told how it went (connecting, refused, invalid address). |
 | `/beezy reset <player\|*>` | `beezy.command.reset` | Clears everything the server sent to the player. |
 
 All default to operators. `beezy.admin` grants them all.
@@ -265,8 +265,10 @@ public void onResult(BeezyTransferResultEvent event) {
 ```
 
 Works on every Minecraft version, like the vanilla 1.20.5+ transfer. The client answers
-`CONNECTING`, `REFUSED` (transfers off), `INVALID_ADDRESS` (or more than one a minute) or
-`FAILED`; only answers to transfers this server asked for fire the event.
+once, before leaving: `CONNECTING`, `REFUSED` (transfers off) or `INVALID_ADDRESS` (or more than
+one a minute). If the new server cannot be reached, the player ends up on their multiplayer
+screen, which this server cannot be told. Only answers to transfers this server asked for fire
+the event.
 
 ### Other platforms
 

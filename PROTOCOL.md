@@ -86,7 +86,7 @@ disconnect for that), so the Hello goes out once the server has sent its own `mi
 (`REGISTER`) naming `beezy:server`. On Paper/Spigot that happens by itself when a plugin registers
 `beezy:server` as an incoming plugin channel; a server written by hand must send it.
 
-| 3 | Transfer result | `str` id (the request's, ≤ 32), `u8` status: 0 connecting, 1 refused (the player switched transfers off), 2 invalid address, 3 failed (could not connect; the player is back at the multiplayer screen) |
+| 3 | Transfer result | `str` id (the request's, ≤ 32), `u8` status: 0 connecting (sent just before the client leaves), 1 refused (the player switched transfers off), 2 invalid address or too soon. If the new server cannot be reached the player ends up on the multiplayer screen; the old server is not told. |
 
 The Hello and the transfer result are the only things the client ever sends.
 
@@ -123,7 +123,7 @@ The Hello and the transfer result are the only things the client ever sends.
 | 110 | Hologram set | `str` id (≤ 32), `pos`, `world`, `u8` count (1-8), then that many `str` lines (≤ 128 each, `§` codes kept), `duration` | Floating text lines, top first, facing the player. 64 at once. |
 | 111 | Hologram remove | `str` id | |
 | 112 | Holograms clear | (empty) | |
-| 120 | Module settings | `u8` count (1-64), then per entry: `str` module (≤ 32, a Beezy module id such as `zoom`), `str` option (≤ 32, a setting id of that module; empty = the module's on/off switch), `u8` type, value: type 0 bool (`u8` 0/1), 1 int (`i32`), 2 decimal (`f64`), 3 text (`str`, ≤ 64), 4 colour (`color`) | Overrides those settings while the player stays on this server; the player cannot change them meanwhile and the menu says "Set by this server". Unknown modules or options, a wrong type, or a value outside the setting's own range are skipped (one at a time, not the whole message). Sending the same module and option again replaces it. |
+| 120 | Module settings | `u8` count (1-64), then per entry: `str` module (≤ 32, a Beezy module id such as `zoom`), `str` option (≤ 32, a setting id of that module; empty = the module's on/off switch), `u8` type, value: type 0 bool (`u8` 0/1), 1 int (`i32`), 2 decimal (`f64`), 3 text (`str`, ≤ 64), 4 colour (`color`) | Overrides those settings while the player stays on this server; the player cannot change them meanwhile and the menu says "Set by this server". Unknown modules or options, a wrong type, or a value outside the setting's own range are skipped (one at a time, not the whole message). Sending the same module and option again replaces it. The Server Features module (`server_features`) cannot be set: those are the player's own switches over this API. |
 | 121 | Module settings release | `u8` count (0-64), then per entry: `str` module, `str` option (empty = the switch) | Gives those settings back to the player (their own value again). Count 0 releases all. |
 | 130 | Nametag set | `uuid` player, `u8` count (0-5), then that many `str` lines (≤ 64 each, `§` codes kept) | Replaces the nametag above that player, top line first, for this player only. Count 0 hides it. 128 at once. |
 | 131 | Nametag reset | `uuid` player | Back to the vanilla nametag. |

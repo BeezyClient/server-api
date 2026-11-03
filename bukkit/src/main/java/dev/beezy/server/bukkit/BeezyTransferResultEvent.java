@@ -8,9 +8,11 @@ import org.bukkit.event.HandlerList;
 /**
  * Fired when a player's client answers a transfer this server asked for
  * ({@code BeezyServerApi#transfer}). {@link #getId()} is the id the transfer call returned or was
- * given. {@code CONNECTING} means the player is leaving for the address; {@code REFUSED} that they
+ * given. The client answers once, before it leaves. {@code CONNECTING} means the player is leaving
+ * for the address (if it cannot be reached they end up on their multiplayer screen, which this
+ * server cannot be told); {@code REFUSED} that they
  * switched transfers off; {@code INVALID_ADDRESS} that the address was not valid or a transfer was
- * already asked for in the last minute; {@code FAILED} that the client could not connect.
+ * already asked for in the last minute.
  */
 public final class BeezyTransferResultEvent extends Event {
 

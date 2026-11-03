@@ -405,8 +405,9 @@ class BeezyCodecTest {
 
     @Test
     void decodeTransferResult() {
-        String[] names = {"CONNECTING", "REFUSED", "INVALID_ADDRESS", "FAILED"};
-        for (int status = 0; status < 4; status++) {
+        String[] names = {"CONNECTING", "REFUSED", "INVALID_ADDRESS"};
+        assertEquals(3, TransferResult.Status.values().length);
+        for (int status = 0; status < 3; status++) {
             byte[] wire = bytes(1, 3, 2, "t1", status);
             TransferResult r = BeezyCodec.decodeTransferResult(wire);
             assertNotNull(r);
@@ -417,7 +418,7 @@ class BeezyCodecTest {
             assertEquals(r, BeezyCodec.decode(wire));
         }
         assertNotNull(BeezyCodec.decodeTransferResult(bytes(1, 3, 1, "t", 0, 9, 9))); // trailing bytes
-        assertNull(BeezyCodec.decodeTransferResult(bytes(1, 3, 1, "t", 4)));          // unknown status
+        assertNull(BeezyCodec.decodeTransferResult(bytes(1, 3, 1, "t", 3)));          // unknown status (3 was removed)
         assertNull(BeezyCodec.decodeTransferResult(bytes(1, 3, 0, 0)));               // empty id
         assertNull(BeezyCodec.decodeTransferResult(bytes(1, 1, 1, "t", 0)));          // a Hello's kind
         assertNull(BeezyCodec.decodeTransferResult(bytes(2, 3, 1, "t", 0)));          // format 2

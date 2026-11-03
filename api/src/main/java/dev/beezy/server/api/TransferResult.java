@@ -4,16 +4,14 @@ package dev.beezy.server.api;
 public final class TransferResult implements ClientMessage {
 
     public enum Status {
-        /** The client is leaving this server for the address. */
+        /** The client is leaving this server for the address (sent before it leaves). */
         CONNECTING,
         /** The player switched transfers off. */
         REFUSED,
         /** The address is not valid, or the server asked for more than one transfer a minute. */
-        INVALID_ADDRESS,
-        /** The client could not connect; the player is back at the multiplayer screen. */
-        FAILED;
+        INVALID_ADDRESS;
 
-        /** Wire value: 0 connecting, 1 refused, 2 invalid address, 3 failed. */
+        /** Wire value: 0 connecting, 1 refused, 2 invalid address. */
         public int id() {
             return ordinal();
         }

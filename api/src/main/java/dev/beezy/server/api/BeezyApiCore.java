@@ -329,7 +329,7 @@ public class BeezyApiCore implements BeezyServerApi {
 
     /**
      * The address of the transfer this result answers, or null if this server did not ask for it.
-     * A request stays pending while the client is only connecting (a failure may follow).
+     * Every status is final: the client answers once, before it leaves.
      */
     private String completeTransfer(UUID player, TransferResult result) {
         Map<String, String> pending = pendingTransfers.get(player);
@@ -337,7 +337,7 @@ public class BeezyApiCore implements BeezyServerApi {
             return null;
         }
         synchronized (pending) {
-            return result.status() == TransferResult.Status.CONNECTING ? pending.get(result.id()) : pending.remove(result.id());
+            return pending.remove(result.id());
         }
     }
 

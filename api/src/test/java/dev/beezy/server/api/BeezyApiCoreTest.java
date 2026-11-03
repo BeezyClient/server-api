@@ -182,16 +182,13 @@ class BeezyApiCoreTest {
         assertNotNull(tid);
         assertArrayEquals(BeezyCodec.transfer(tid, "lobby.example.net:25566"), sent.get(0));
         // a result nobody asked for is dropped
-        assertNull(api.handleIncoming(id, BeezyCodec.transferResult(new TransferResult("other", TransferResult.Status.FAILED))));
-        // connecting keeps the request (a failure may follow), then the final status completes it
+        assertNull(api.handleIncoming(id, BeezyCodec.transferResult(new TransferResult("other", TransferResult.Status.CONNECTING))));
+        // the one answer completes the request: a second one is dropped
         TransferResult connecting = (TransferResult) api.handleIncoming(id,
                 BeezyCodec.transferResult(new TransferResult(tid, TransferResult.Status.CONNECTING)));
+        assertEquals(TransferResult.Status.CONNECTING, connecting.status());
         assertEquals("lobby.example.net:25566", connecting.address());
-        TransferResult failed = (TransferResult) api.handleIncoming(id,
-                BeezyCodec.transferResult(new TransferResult(tid, TransferResult.Status.FAILED)));
-        assertEquals(TransferResult.Status.FAILED, failed.status());
-        assertEquals("lobby.example.net:25566", failed.address());
-        assertNull(api.handleIncoming(id, BeezyCodec.transferResult(new TransferResult(tid, TransferResult.Status.FAILED))));
+        assertNull(api.handleIncoming(id, BeezyCodec.transferResult(new TransferResult(tid, TransferResult.Status.CONNECTING))));
         // ids of one's own; results from a player without a Hello are ignored
         assertTrue(api.transfer(id, "mine", "a.example"));
         UUID stranger = UUID.randomUUID();
@@ -202,7 +199,7 @@ class BeezyApiCoreTest {
         assertTrue(api.transfer(id, "late", "a.example"));
         api.forget(id);
         hello(Feature.TRANSFER.mask());
-        assertNull(api.handleIncoming(id, BeezyCodec.transferResult(new TransferResult("late", TransferResult.Status.FAILED))));
+        assertNull(api.handleIncoming(id, BeezyCodec.transferResult(new TransferResult("late", TransferResult.Status.INVALID_ADDRESS))));
     }
 
     @Test
