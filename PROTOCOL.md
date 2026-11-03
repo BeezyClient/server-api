@@ -61,9 +61,12 @@ u8   kind     see the tables
 - `pos` is three `f64` (x, y, z), finite.
 - `component` is a text component: a `u16` byte length (1-4096) then that many bytes of UTF-8
   JSON, in Minecraft's JSON text format (what Adventure's `GsonComponentSerializer` writes:
-  `text`, `extra`, `color` as a name or `#rrggbb`, `bold`, `italic`, `underlined`,
-  `strikethrough`, `obfuscated`, `font`, `translate`/`with`, `keybind`, `score` and `selector`
-  are shown as plain text). As in vanilla, a bare JSON string is a plain text component and an
+  `text`, `extra`, `color` as a name or `#rrggbb` (hex digits in either case; Adventure writes
+  `#FF8800`), `bold`, `italic`, `underlined`, `strikethrough`, `obfuscated`, `font`;
+  `translate`, `keybind`, `score` and `selector` are shown as plain text. A client that knows a
+  `translate` key may show its translation, with the `with` arguments; otherwise it shows the
+  `fallback`, or the key itself when there is none. A server should not rely on translations:
+  the text it wants seen goes in `text`). As in vanilla, a bare JSON string is a plain text component and an
   array is its first element with the rest appended as `extra`: Adventure writes plain text as
   `"Steve"` and plain children as strings (`"extra":["50%"]`). The client draws what its Minecraft version can: hex colours become
   the nearest named colour before 1.16, an unknown font is the default one, click and hover
