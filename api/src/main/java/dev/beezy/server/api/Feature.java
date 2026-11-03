@@ -11,7 +11,18 @@ public enum Feature {
     TIMERS(3),
     HEIGHT_LIMIT(4),
     TEAM(5),
-    RICH_PRESENCE(6);
+    RICH_PRESENCE(6),
+    BEAMS(7),
+    BORDERS(8),
+    GLOW(9),
+    HOLOGRAMS(10),
+    MODULE_SETTINGS(11),
+    NAMETAGS(12),
+    NICK_HIDER(13),
+    /** Food values for the Saturation display. */
+    FOOD_VALUES(14),
+    TNT_COUNTDOWN(15),
+    TRANSFER(16);
 
     private final int bit;
 

@@ -4,9 +4,10 @@ import dev.beezy.server.api.BeezyApiCore;
 import dev.beezy.server.api.BeezyCodec;
 import dev.beezy.server.api.BeezyProtocol;
 import dev.beezy.server.api.BeezyServerApi;
+import dev.beezy.server.api.ClientMessage;
 import dev.beezy.server.api.Hello;
-import dev.beezy.server.api.Notification;
 import dev.beezy.server.api.RichPresence;
+import dev.beezy.server.api.TransferResult;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Set;
@@ -31,15 +32,15 @@ import org.bukkit.scheduler.BukkitTask;
  * <p>Registering {@code beezy:server} as an incoming channel makes the server list it in the
  * {@code REGISTER} it sends every player on join; a Beezy client answers with its Hello. On join
  * the plugin also sends a Reset, so nothing another backend of the same network sent stays on the
- * player's screen. The plugin sends nothing else on its own except the optional welcome
- * notification, default presence and team sync from config.yml, and never contacts anything.
+ * player's screen. The plugin sends nothing else on its own except the optional default presence
+ * and team sync from config.yml, and never contacts anything.
  */
 public final class BeezyPlugin extends JavaPlugin implements Listener, PluginMessageListener {
 
     private BeezyApiCore api;
-    private final Set<UUID> welcomed = Collections.newSetFromMap(new ConcurrentHashMap<UUID, Boolean>());
+    /** Players who said Hello during this visit, so a repeated Hello is not "first". */
+    private final Set<UUID> greeted = Collections.newSetFromMap(new ConcurrentHashMap<UUID, Boolean>());
     private boolean debug;
-    private Notification welcome;
     private RichPresence defaultPresence;
     private TeamSync teamSync;
     private BukkitTask teamSyncTask;
@@ -73,6 +74,7 @@ public final class BeezyPlugin extends JavaPlugin implements Listener, PluginMes
         PluginCommand beezy = getCommand("beezy");
         beezy.setExecutor(command);
         beezy.setTabCompleter(command);
+        getServer().getPluginManager().registerEvents(command, this);
 
         startTeamSync();
 
@@ -92,23 +94,12 @@ public final class BeezyPlugin extends JavaPlugin implements Listener, PluginMes
         if (api != null) {
             api.forgetAll();
         }
-        welcomed.clear();
+        greeted.clear();
     }
 
     private void loadSettings() {
         FileConfiguration config = getConfig();
         debug = config.getBoolean("debug", false);
-
-        welcome = null;
-        if (config.getBoolean("welcome.enabled", true)) {
-            try {
-                welcome = Notification.builder(config.getString("welcome.title", "Welcome"), config.getString("welcome.text", ""))
-                        .seconds(config.getInt("welcome.seconds", 5))
-                        .build();
-            } catch (IllegalArgumentException e) {
-                getLogger().warning("welcome notification disabled, invalid config: " + e.getMessage());
-            }
-        }
 
         defaultPresence = null;
         String game = config.getString("rich-presence.game", "");
@@ -151,7 +142,7 @@ public final class BeezyPlugin extends JavaPlugin implements Listener, PluginMes
     public void onQuit(PlayerQuitEvent event) {
         UUID id = event.getPlayer().getUniqueId();
         api.forget(id);
-        welcomed.remove(id);
+        greeted.remove(id);
         if (teamSync != null) {
             teamSync.forget(id);
         }
@@ -184,28 +175,31 @@ public final class BeezyPlugin extends JavaPlugin implements Listener, PluginMes
         }
     }
 
-    // ---- Hello -----------------------------------------------------------------------------
+    // ---- Hello and transfer results -----------------------------------------------------------
 
     @Override
     public void onPluginMessageReceived(String channel, Player player, byte[] message) {
         if (!BeezyProtocol.CHANNEL.equals(channel)) {
             return;
         }
-        Hello hello = api.handleIncoming(player.getUniqueId(), message);
-        if (hello == null) {
-            debug("ignored a malformed message from " + player.getName() + " (" + message.length + " bytes)");
-            return;
+        ClientMessage incoming = api.handleIncoming(player.getUniqueId(), message);
+        if (incoming instanceof Hello) {
+            onHello(player, (Hello) incoming);
+        } else if (incoming instanceof TransferResult) {
+            TransferResult result = (TransferResult) incoming;
+            debug(player.getName() + " answers transfer " + result.id() + " to " + result.address() + ": " + result.status());
+            getServer().getPluginManager().callEvent(new BeezyTransferResultEvent(player, result));
+        } else {
+            debug("ignored a malformed or unexpected message from " + player.getName() + " (" + message.length + " bytes)");
         }
-        boolean first = welcomed.add(player.getUniqueId());
+    }
+
+    private void onHello(Player player, Hello hello) {
+        boolean first = greeted.add(player.getUniqueId());
         debug(player.getName() + " says Hello: " + hello + (first ? "" : " (again)"));
         getServer().getPluginManager().callEvent(new BeezyHelloEvent(player, api.player(player.getUniqueId()), hello, first));
-        if (first) {
-            if (welcome != null) {
-                api.sendNotification(player.getUniqueId(), welcome);
-            }
-            if (defaultPresence != null) {
-                api.sendRichPresence(player.getUniqueId(), defaultPresence);
-            }
+        if (first && defaultPresence != null) {
+            api.sendRichPresence(player.getUniqueId(), defaultPresence);
         }
     }
 

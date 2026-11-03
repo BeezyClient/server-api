@@ -4,7 +4,7 @@ import java.util.EnumSet;
 import java.util.Set;
 
 /** What a Beezy client says when it joins: its Minecraft version, Beezy version and enabled features. */
-public final class Hello {
+public final class Hello implements ClientMessage {
 
     private final String minecraftVersion;
     private final String beezyVersion;

@@ -5,6 +5,7 @@ import dev.beezy.server.api.BeezyProtocol;
 import dev.beezy.server.api.Feature;
 import dev.beezy.server.api.Hello;
 import dev.beezy.server.api.TeamMember;
+import java.awt.Color;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -52,7 +53,7 @@ final class TeamSync implements Runnable {
                 }
                 continue;
             }
-            int color = colorOf(team);
+            Color color = colorOf(team);
             List<TeamMember> members = new ArrayList<TeamMember>();
             for (String entry : team.getEntries()) {
                 if (members.size() >= BeezyProtocol.MAX_TEAM_MEMBERS) {
@@ -66,7 +67,7 @@ final class TeamSync implements Runnable {
                     TeamMember m = new TeamMember(mate.getUniqueId(), mate.getName(), color);
                     if (positions) {
                         Location loc = mate.getLocation();
-                        m = m.withPosition(loc.getX(), loc.getY(), loc.getZ(), Dimensions.of(loc.getWorld()));
+                        m = m.withPosition(loc.getX(), loc.getY(), loc.getZ(), BeezyBukkit.world(loc.getWorld()));
                     }
                     members.add(m);
                 } catch (IllegalArgumentException ignored) {
@@ -78,8 +79,8 @@ final class TeamSync implements Runnable {
         }
     }
 
-    /** ARGB of the team color: {@code Team#getColor()} on 1.12+, else the last color in the prefix. */
-    private static int colorOf(Team team) {
+    /** The team color: {@code Team#getColor()} on 1.12+, else the last color in the prefix; null if none. */
+    private static Color colorOf(Team team) {
         ChatColor color = null;
         try {
             Method getColor = team.getClass().getMethod("getColor");
@@ -100,29 +101,29 @@ final class TeamSync implements Runnable {
                 }
             }
         }
-        return color == null || !color.isColor() ? 0 : argb(color);
+        return color == null || !color.isColor() ? null : rgb(color);
     }
 
-    /** Vanilla RGB of the 16 chat colors. */
-    static int argb(ChatColor color) {
+    /** Vanilla RGB of the 16 chat colors; null for formats. */
+    static Color rgb(ChatColor color) {
         switch (color) {
-            case BLACK: return 0xFF000000;
-            case DARK_BLUE: return 0xFF0000AA;
-            case DARK_GREEN: return 0xFF00AA00;
-            case DARK_AQUA: return 0xFF00AAAA;
-            case DARK_RED: return 0xFFAA0000;
-            case DARK_PURPLE: return 0xFFAA00AA;
-            case GOLD: return 0xFFFFAA00;
-            case GRAY: return 0xFFAAAAAA;
-            case DARK_GRAY: return 0xFF555555;
-            case BLUE: return 0xFF5555FF;
-            case GREEN: return 0xFF55FF55;
-            case AQUA: return 0xFF55FFFF;
-            case RED: return 0xFFFF5555;
-            case LIGHT_PURPLE: return 0xFFFF55FF;
-            case YELLOW: return 0xFFFFFF55;
-            case WHITE: return 0xFFFFFFFF;
-            default: return 0;
+            case BLACK: return new Color(0x000000);
+            case DARK_BLUE: return new Color(0x0000AA);
+            case DARK_GREEN: return new Color(0x00AA00);
+            case DARK_AQUA: return new Color(0x00AAAA);
+            case DARK_RED: return new Color(0xAA0000);
+            case DARK_PURPLE: return new Color(0xAA00AA);
+            case GOLD: return new Color(0xFFAA00);
+            case GRAY: return new Color(0xAAAAAA);
+            case DARK_GRAY: return new Color(0x555555);
+            case BLUE: return new Color(0x5555FF);
+            case GREEN: return new Color(0x55FF55);
+            case AQUA: return new Color(0x55FFFF);
+            case RED: return new Color(0xFF5555);
+            case LIGHT_PURPLE: return new Color(0xFF55FF);
+            case YELLOW: return new Color(0xFFFF55);
+            case WHITE: return new Color(0xFFFFFF);
+            default: return null;
         }
     }
 }

@@ -1,8 +1,11 @@
 package dev.beezy.server.api;
 
-import static dev.beezy.server.api.BeezyProtocol.MAX_DIMENSION;
 import static dev.beezy.server.api.BeezyProtocol.MAX_ID;
 import static dev.beezy.server.api.BeezyProtocol.MAX_NAME;
+import static dev.beezy.server.api.BeezyProtocol.MAX_WORLD;
+
+import java.awt.Color;
+import java.time.Duration;
 
 /**
  * A server waypoint (kind 10). Sending one with an id the player already has replaces it; the
@@ -10,7 +13,8 @@ import static dev.beezy.server.api.BeezyProtocol.MAX_NAME;
  *
  * <pre>{@code
  * Waypoint spawn = Waypoint.builder("spawn").name("Spawn").at(0, 64, 0)
- *         .dimension("minecraft:overworld").color(0xFF55FF55).beam(true).build();
+ *         .world("minecraft:overworld").color(Color.GREEN).beam(true)
+ *         .duration(Duration.ofMinutes(5)).build();
  * }</pre>
  */
 public final class Waypoint {
@@ -20,9 +24,10 @@ public final class Waypoint {
     private final int x;
     private final int y;
     private final int z;
-    private final String dimension;
-    private final int color;
+    private final String world;
+    private final Color color;
     private final boolean beam;
+    private final long durationMs;
 
     private Waypoint(Builder b) {
         this.id = Check.id(b.id, MAX_ID, "waypoint id");
@@ -30,9 +35,10 @@ public final class Waypoint {
         this.x = b.x;
         this.y = b.y;
         this.z = b.z;
-        this.dimension = Check.optStr(b.dimension, MAX_DIMENSION, "waypoint dimension");
+        this.world = Check.optStr(b.world, MAX_WORLD, "waypoint world");
         this.color = b.color;
         this.beam = b.beam;
+        this.durationMs = Check.durationMs(b.duration, "waypoint duration");
     }
 
     public static Builder builder(String id) {
@@ -59,18 +65,23 @@ public final class Waypoint {
         return z;
     }
 
-    /** Dimension id such as {@code minecraft:overworld}; empty means any dimension. */
-    public String dimension() {
-        return dimension;
+    /** World key such as {@code minecraft:overworld}; empty means any world. */
+    public String world() {
+        return world;
     }
 
-    /** ARGB; alpha 0 means the client's default color. */
-    public int color() {
+    /** Null means the client's default colour. */
+    public Color color() {
         return color;
     }
 
     public boolean beam() {
         return beam;
+    }
+
+    /** Milliseconds until the client removes it by itself; 0 means until removed. */
+    public long durationMs() {
+        return durationMs;
     }
 
     public static final class Builder {
@@ -79,9 +90,10 @@ public final class Waypoint {
         private int x;
         private int y;
         private int z;
-        private String dimension = "";
-        private int color;
+        private String world = "";
+        private Color color;
         private boolean beam;
+        private Duration duration;
 
         private Builder(String id) {
             this.id = id;
@@ -101,15 +113,18 @@ public final class Waypoint {
             return this;
         }
 
-        /** E.g. {@code minecraft:the_nether}; empty or null for any dimension (the default). */
-        public Builder dimension(String dimension) {
-            this.dimension = dimension;
+        /**
+         * The world key the client knows, e.g. {@code minecraft:the_nether}; empty or null for any
+         * world (the default). On Bukkit, {@code BeezyBukkit.world(World)} gives the key.
+         */
+        public Builder world(String world) {
+            this.world = world;
             return this;
         }
 
-        /** ARGB, e.g. {@code 0xFFFF5555}; 0 (the default) lets the client pick. */
-        public Builder color(int argb) {
-            this.color = argb;
+        /** Null (the default) lets the client pick. */
+        public Builder color(Color color) {
+            this.color = color;
             return this;
         }
 
@@ -119,7 +134,13 @@ public final class Waypoint {
             return this;
         }
 
-        /** @throws IllegalArgumentException if a field is over its cap */
+        /** The client removes it by itself after this long (at most 24 h); null or zero (the default) keeps it until removed. */
+        public Builder duration(Duration duration) {
+            this.duration = duration;
+            return this;
+        }
+
+        /** @throws IllegalArgumentException if a field is over its cap or out of range */
         public Waypoint build() {
             return new Waypoint(this);
         }

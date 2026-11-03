@@ -1,12 +1,18 @@
 package dev.beezy.server.api;
 
+import java.awt.Color;
+import java.time.Duration;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * The platform-neutral {@link BeezyServerApi}: remembers each player's Hello and sends payloads
@@ -15,23 +21,40 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class BeezyApiCore implements BeezyServerApi {
 
+    /** Unanswered transfers remembered per player; older ones are forgotten past this. */
+    private static final int MAX_PENDING_TRANSFERS = 16;
+
     private final Transport transport;
     private final Map<UUID, Hello> hellos = new ConcurrentHashMap<UUID, Hello>();
+    /** Per player: transfer id -> address, for transfers this server asked for. */
+    private final Map<UUID, Map<String, String>> pendingTransfers = new ConcurrentHashMap<UUID, Map<String, String>>();
+    private final AtomicLong transferIds = new AtomicLong();
 
     public BeezyApiCore(Transport transport) {
         this.transport = Check.notNull(transport, "transport");
     }
 
     /**
-     * Handles a payload the player sent on {@code beezy:server}. Returns the Hello (and remembers
-     * the player as a Beezy player) or null if the payload is not a valid Hello.
+     * Handles a payload the player sent on {@code beezy:server}. Returns:
+     * <ul>
+     *   <li>a {@link Hello}, after remembering the player as a Beezy player;</li>
+     *   <li>a {@link TransferResult} (with {@link TransferResult#address()} set) answering a
+     *       transfer this server asked that player for;</li>
+     *   <li>null for anything else: malformed, unknown, or a result nobody asked for.</li>
+     * </ul>
      */
-    public Hello handleIncoming(UUID player, byte[] payload) {
-        Hello hello = BeezyCodec.decodeHello(payload);
-        if (hello != null) {
-            remember(player, hello);
+    public ClientMessage handleIncoming(UUID player, byte[] payload) {
+        ClientMessage message = BeezyCodec.decode(payload);
+        if (message instanceof Hello) {
+            remember(player, (Hello) message);
+            return message;
         }
-        return hello;
+        if (message instanceof TransferResult && isBeezy(player)) {
+            TransferResult result = (TransferResult) message;
+            String address = completeTransfer(player, result);
+            return address == null ? null : new TransferResult(result.id(), result.status(), address);
+        }
+        return null;
     }
 
     /** Records a Hello for the player (replacing an earlier one). */
@@ -42,11 +65,13 @@ public class BeezyApiCore implements BeezyServerApi {
     /** Forgets the player, e.g. when they quit. */
     public void forget(UUID player) {
         hellos.remove(player);
+        pendingTransfers.remove(player);
     }
 
     /** Forgets everyone, e.g. when the plugin is disabled. */
     public void forgetAll() {
         hellos.clear();
+        pendingTransfers.clear();
     }
 
     @Override
@@ -120,8 +145,8 @@ public class BeezyApiCore implements BeezyServerApi {
     }
 
     @Override
-    public boolean sendHeightLimit(UUID player, String dimension, int minY, int maxY) {
-        return send(player, Feature.HEIGHT_LIMIT, BeezyCodec.heightLimit(dimension, minY, maxY));
+    public boolean sendHeightLimit(UUID player, String world, int minY, int maxY) {
+        return send(player, Feature.HEIGHT_LIMIT, BeezyCodec.heightLimit(world, minY, maxY));
     }
 
     @Override
@@ -150,17 +175,189 @@ public class BeezyApiCore implements BeezyServerApi {
     }
 
     @Override
+    public boolean sendBeam(UUID player, Beam beam) {
+        return send(player, Feature.BEAMS, BeezyCodec.beam(beam));
+    }
+
+    @Override
+    public boolean removeBeam(UUID player, String id) {
+        return send(player, Feature.BEAMS, BeezyCodec.beamRemove(id));
+    }
+
+    @Override
+    public boolean clearBeams(UUID player) {
+        return send(player, Feature.BEAMS, BeezyCodec.beamsClear());
+    }
+
+    @Override
+    public boolean sendBorder(UUID player, Border border) {
+        return send(player, Feature.BORDERS, BeezyCodec.border(border));
+    }
+
+    @Override
+    public boolean removeBorder(UUID player, String id) {
+        return send(player, Feature.BORDERS, BeezyCodec.borderRemove(id));
+    }
+
+    @Override
+    public boolean clearBorders(UUID player) {
+        return send(player, Feature.BORDERS, BeezyCodec.bordersClear());
+    }
+
+    @Override
+    public boolean sendGlow(UUID player, UUID entity, Color color) {
+        return send(player, Feature.GLOW, BeezyCodec.glow(entity, color));
+    }
+
+    @Override
+    public boolean removeGlow(UUID player, UUID entity) {
+        return send(player, Feature.GLOW, BeezyCodec.glowRemove(entity));
+    }
+
+    @Override
+    public boolean clearGlow(UUID player) {
+        return send(player, Feature.GLOW, BeezyCodec.glowClear());
+    }
+
+    @Override
+    public boolean sendHologram(UUID player, Hologram hologram) {
+        return send(player, Feature.HOLOGRAMS, BeezyCodec.hologram(hologram));
+    }
+
+    @Override
+    public boolean removeHologram(UUID player, String id) {
+        return send(player, Feature.HOLOGRAMS, BeezyCodec.hologramRemove(id));
+    }
+
+    @Override
+    public boolean clearHolograms(UUID player) {
+        return send(player, Feature.HOLOGRAMS, BeezyCodec.hologramsClear());
+    }
+
+    @Override
+    public boolean overrideSettings(UUID player, ModuleSettings settings) {
+        return send(player, Feature.MODULE_SETTINGS, BeezyCodec.moduleSettings(settings));
+    }
+
+    @Override
+    public boolean releaseSettings(UUID player, Collection<SettingKey> keys) {
+        return send(player, Feature.MODULE_SETTINGS, BeezyCodec.moduleSettingsRelease(keys));
+    }
+
+    @Override
+    public boolean releaseAllSettings(UUID player) {
+        return send(player, Feature.MODULE_SETTINGS, BeezyCodec.moduleSettingsReleaseAll());
+    }
+
+    @Override
+    public boolean sendNametag(UUID player, Nametag nametag) {
+        return send(player, Feature.NAMETAGS, BeezyCodec.nametag(nametag));
+    }
+
+    @Override
+    public boolean resetNametag(UUID player, UUID target) {
+        return send(player, Feature.NAMETAGS, BeezyCodec.nametagReset(target));
+    }
+
+    @Override
+    public boolean clearNametags(UUID player) {
+        return send(player, Feature.NAMETAGS, BeezyCodec.nametagsClear());
+    }
+
+    @Override
+    public boolean sendNick(UUID player, String nick) {
+        return send(player, Feature.NICK_HIDER, BeezyCodec.nickHider(nick));
+    }
+
+    @Override
+    public boolean clearNick(UUID player) {
+        return send(player, Feature.NICK_HIDER, BeezyCodec.nickHiderClear());
+    }
+
+    @Override
+    public boolean sendFoodValues(UUID player, List<FoodValue> values) {
+        return send(player, Feature.FOOD_VALUES, BeezyCodec.foodValues(values));
+    }
+
+    @Override
+    public boolean clearFoodValues(UUID player) {
+        return send(player, Feature.FOOD_VALUES, BeezyCodec.foodValuesClear());
+    }
+
+    @Override
+    public boolean sendTntCountdown(UUID player, int ticks) {
+        return send(player, Feature.TNT_COUNTDOWN, BeezyCodec.tntCountdown(ticks));
+    }
+
+    @Override
+    public boolean sendTntCountdown(UUID player, Duration fuse) {
+        return sendTntCountdown(player, BeezyCodec.tntTicks(fuse));
+    }
+
+    @Override
+    public boolean clearTntCountdown(UUID player) {
+        return send(player, Feature.TNT_COUNTDOWN, BeezyCodec.tntCountdownClear());
+    }
+
+    @Override
+    public String transfer(UUID player, String address) {
+        String id = "transfer-" + transferIds.incrementAndGet();
+        return transfer(player, id, address) ? id : null;
+    }
+
+    @Override
+    public boolean transfer(UUID player, String id, String address) {
+        byte[] payload = BeezyCodec.transfer(id, address);
+        if (!wants(player, Feature.TRANSFER)) {
+            return false;
+        }
+        // Remembered before sending, so an answer that comes back at once is matched.
+        Map<String, String> pending = pendingTransfers.computeIfAbsent(player,
+                k -> Collections.synchronizedMap(new LinkedHashMap<String, String>()));
+        synchronized (pending) {
+            pending.remove(id); // re-insert at the end
+            pending.put(id, address);
+            Iterator<String> oldest = pending.keySet().iterator();
+            while (pending.size() > MAX_PENDING_TRANSFERS) {
+                oldest.next();
+                oldest.remove();
+            }
+        }
+        transport.send(player, payload);
+        return true;
+    }
+
+    /**
+     * The address of the transfer this result answers, or null if this server did not ask for it.
+     * A request stays pending while the client is only connecting (a failure may follow).
+     */
+    private String completeTransfer(UUID player, TransferResult result) {
+        Map<String, String> pending = pendingTransfers.get(player);
+        if (pending == null) {
+            return null;
+        }
+        synchronized (pending) {
+            return result.status() == TransferResult.Status.CONNECTING ? pending.get(result.id()) : pending.remove(result.id());
+        }
+    }
+
+    @Override
     public boolean reset(UUID player) {
         return send(player, null, BeezyCodec.reset());
     }
 
     /** Encodes first (so bad input always throws), then sends only if the player wants it. */
     private boolean send(UUID player, Feature feature, byte[] payload) {
-        Hello hello = helloOf(player);
-        if (hello == null || (feature != null && !hello.has(feature))) {
+        if (!wants(player, feature)) {
             return false;
         }
         transport.send(player, payload);
         return true;
+    }
+
+    /** A Beezy player with {@code feature} on (any Beezy player for a null feature). */
+    private boolean wants(UUID player, Feature feature) {
+        Hello hello = helloOf(player);
+        return hello != null && (feature == null || hello.has(feature));
     }
 }

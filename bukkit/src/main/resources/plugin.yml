@@ -1,7 +1,7 @@
 name: Beezy
 version: '${version}'
 main: dev.beezy.server.bukkit.BeezyPlugin
-description: Shows waypoints, notifications, cooldowns, timers, teams and rich presence to Beezy Client players.
+description: Server features for Beezy Client players - waypoints, beams, borders, holograms, glow, nametags, notifications, cooldowns, timers, teams, rich presence, module settings and transfers.
 author: imBuzz
 # Ignored by 1.8-1.12 servers; on 1.13+ it means "not a legacy plugin".
 api-version: '1.13'
@@ -9,7 +9,7 @@ folia-supported: true
 commands:
   beezy:
     description: Beezy server features.
-    usage: /beezy [check|notify|waypoint|reset]
+    usage: /beezy [check|notify|waypoint|beam|transfer|reset]
 permissions:
   beezy.admin:
     description: Every /beezy command.
@@ -19,7 +19,15 @@ permissions:
       beezy.command.check: true
       beezy.command.notify: true
       beezy.command.waypoint: true
-      beezy.command.reset: true
+      beezy.command.beam: true
+      beezy.command.transfer: true
+      beezy.command.beam:
+    description: /beezy beam - add, remove or clear beams.
+    default: op
+  beezy.command.transfer:
+    description: /beezy transfer - send players to another server.
+    default: op
+  beezy.command.reset: true
   beezy.command.help:
     description: /beezy (help).
     default: op
@@ -31,6 +39,12 @@ permissions:
     default: op
   beezy.command.waypoint:
     description: /beezy waypoint - add, remove or clear waypoints.
+    default: op
+  beezy.command.beam:
+    description: /beezy beam - add, remove or clear beams.
+    default: op
+  beezy.command.transfer:
+    description: /beezy transfer - send players to another server.
     default: op
   beezy.command.reset:
     description: /beezy reset - clear everything the server sent to a player.

@@ -1,16 +1,10 @@
 # Beezy server plugin.
-# It learns only that a player uses Beezy, its version and the features they switched on.
+# It learns only that a player uses Beezy, its version, the features they switched on and how
+# the transfers this server asked for went.
 # No telemetry, no update checks: it never connects to anything.
 
-# Log every Hello and every malformed message.
+# Log every Hello, transfer result and malformed message.
 debug: false
-
-# A notification for Beezy players when they join (only once per visit).
-welcome:
-  enabled: true
-  title: "Welcome"          # at most 32 bytes
-  text: "This server supports Beezy features."   # at most 160 bytes
-  seconds: 5                # 1 to 30
 
 # Discord rich presence sent to Beezy players when they join (only shown to Discord if they
 # enabled Discord Rich Presence in Beezy). Leave game empty to send nothing; other plugins can

@@ -1,33 +1,43 @@
 package dev.beezy.server.bukkit;
 
+import dev.beezy.server.api.Beam;
 import dev.beezy.server.api.BeezyServerApi;
 import dev.beezy.server.api.Feature;
 import dev.beezy.server.api.Hello;
 import dev.beezy.server.api.Notification;
+import dev.beezy.server.api.TransferResult;
 import dev.beezy.server.api.Waypoint;
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
 import org.bukkit.util.StringUtil;
 
 /**
- * {@code /beezy}: help, check, notify, waypoint, reset. Arguments can be quoted ({@code "Bed Wars"}).
+ * {@code /beezy}: help, check, notify, waypoint, beam, transfer, reset. Arguments can be quoted
+ * ({@code "Bed Wars"}). Whoever runs a transfer is told how it went.
  */
-final class BeezyCommand implements TabExecutor {
+final class BeezyCommand implements TabExecutor, Listener {
 
-    private static final List<String> SUBCOMMANDS = Arrays.asList("check", "notify", "waypoint", "reset");
-    private static final List<String> WAYPOINT_ACTIONS = Arrays.asList("add", "remove", "clear");
+    private static final List<String> SUBCOMMANDS = Arrays.asList("check", "notify", "waypoint", "beam", "transfer", "reset");
+    private static final List<String> MARKER_ACTIONS = Arrays.asList("add", "remove", "clear");
 
     private final BeezyPlugin plugin;
+    /** Transfers started from this command: id -> who ran it. */
+    private final Map<String, CommandSender> transfers = new ConcurrentHashMap<String, CommandSender>();
 
     BeezyCommand(BeezyPlugin plugin) {
         this.plugin = plugin;
@@ -55,6 +65,12 @@ final class BeezyCommand implements TabExecutor {
                 case "waypoint":
                     waypoint(sender, args, label);
                     break;
+                case "beam":
+                    beam(sender, args, label);
+                    break;
+                case "transfer":
+                    transfer(sender, args);
+                    break;
                 case "reset":
                     reset(sender, args);
                     break;
@@ -73,8 +89,11 @@ final class BeezyCommand implements TabExecutor {
         sender.sendMessage(ChatColor.YELLOW + "/" + label + " notify <player|*> <title> <text...>" + ChatColor.GRAY + " - show a notification");
         sender.sendMessage(ChatColor.YELLOW + "/" + label + " waypoint <player|*> add <id> <x> <y> <z> [name...]");
         sender.sendMessage(ChatColor.YELLOW + "/" + label + " waypoint <player|*> remove <id>" + ChatColor.GRAY + " | " + ChatColor.YELLOW + "clear");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " beam <player|*> add <id> <x> <y> <z> [#rrggbb|color]" + ChatColor.GRAY + " | "
+                + ChatColor.YELLOW + "remove <id>" + ChatColor.GRAY + " | " + ChatColor.YELLOW + "clear");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " transfer <player|*> <host[:port]>" + ChatColor.GRAY + " - send to another server");
         sender.sendMessage(ChatColor.YELLOW + "/" + label + " reset <player|*>" + ChatColor.GRAY + " - clear everything sent");
-        sender.sendMessage(ChatColor.GRAY + "Quote arguments with spaces: \"Bed Wars\". In waypoint coordinates ~ means your own.");
+        sender.sendMessage(ChatColor.GRAY + "Quote arguments with spaces: \"Bed Wars\". In coordinates ~ means your own.");
     }
 
     private void check(CommandSender sender, List<String> args) {
@@ -118,12 +137,11 @@ final class BeezyCommand implements TabExecutor {
         if (action.equals("add")) {
             need(args, 7, "waypoint <player|*> add <id> <x> <y> <z> [name...]");
             Location here = sender instanceof Player ? ((Player) sender).getLocation() : null;
+            int[] at = coords(args, 4, here);
             Waypoint.Builder builder = Waypoint.builder(args.get(3))
-                    .at(coord(args.get(4), here == null ? null : here.getBlockX()),
-                            coord(args.get(5), here == null ? null : here.getBlockY()),
-                            coord(args.get(6), here == null ? null : here.getBlockZ()))
+                    .at(at[0], at[1], at[2])
                     // A player's waypoint belongs to the world they are in; the console's to any.
-                    .dimension(here == null ? "" : Dimensions.of(here.getWorld()));
+                    .world(here == null ? "" : BeezyBukkit.world(here.getWorld()));
             if (args.size() > 7) {
                 builder.name(join(args.subList(7, args.size()), " "));
             }
@@ -150,6 +168,85 @@ final class BeezyCommand implements TabExecutor {
             throw new IllegalArgumentException("Usage: /" + label + " waypoint <player|*> <add|remove|clear> ...");
         }
         report(sender, sent, targets.size());
+    }
+
+    private void beam(CommandSender sender, List<String> args, String label) {
+        need(args, 3, "beam <player|*> <add|remove|clear> ...");
+        List<UUID> targets = targets(args.get(1));
+        String action = args.get(2).toLowerCase(Locale.ROOT);
+        int sent = 0;
+        if (action.equals("add")) {
+            need(args, 7, "beam <player|*> add <id> <x> <y> <z> [#rrggbb|color]");
+            Location here = sender instanceof Player ? ((Player) sender).getLocation() : null;
+            int[] at = coords(args, 4, here);
+            Beam beam = Beam.builder(args.get(3))
+                    .at(at[0], at[1], at[2])
+                    .world(here == null ? "" : BeezyBukkit.world(here.getWorld()))
+                    .color(args.size() > 7 ? color(args.get(7)) : null)
+                    .build();
+            for (UUID id : targets) {
+                if (api().sendBeam(id, beam)) {
+                    sent++;
+                }
+            }
+        } else if (action.equals("remove")) {
+            need(args, 4, "beam <player|*> remove <id>");
+            for (UUID id : targets) {
+                if (api().removeBeam(id, args.get(3))) {
+                    sent++;
+                }
+            }
+        } else if (action.equals("clear")) {
+            for (UUID id : targets) {
+                if (api().clearBeams(id)) {
+                    sent++;
+                }
+            }
+        } else {
+            throw new IllegalArgumentException("Usage: /" + label + " beam <player|*> <add|remove|clear> ...");
+        }
+        report(sender, sent, targets.size());
+    }
+
+    private void transfer(CommandSender sender, List<String> args) {
+        need(args, 3, "transfer <player|*> <host[:port]>");
+        List<UUID> targets = targets(args.get(1));
+        String address = args.get(2);
+        if (transfers.size() > 256) {
+            transfers.clear(); // answers that never came (the player left first)
+        }
+        int sent = 0;
+        for (UUID id : targets) {
+            String transferId = api().transfer(id, address);
+            if (transferId != null) {
+                transfers.put(transferId, sender);
+                sent++;
+            }
+        }
+        report(sender, sent, targets.size());
+    }
+
+    @EventHandler
+    public void onTransferResult(BeezyTransferResultEvent event) {
+        boolean done = event.getStatus() != TransferResult.Status.CONNECTING;
+        CommandSender sender = done ? transfers.remove(event.getId()) : transfers.get(event.getId());
+        if (sender == null || (sender instanceof Player && !((Player) sender).isOnline())) {
+            return;
+        }
+        String who = ChatColor.YELLOW + event.getPlayer().getName() + ChatColor.GRAY;
+        switch (event.getStatus()) {
+            case CONNECTING:
+                sender.sendMessage(who + " is connecting to " + event.getAddress() + ".");
+                break;
+            case REFUSED:
+                sender.sendMessage(who + " has transfers switched off.");
+                break;
+            case INVALID_ADDRESS:
+                sender.sendMessage(who + ChatColor.RED + ": invalid address, or already transferred in the last minute.");
+                break;
+            default:
+                sender.sendMessage(who + ChatColor.RED + " could not connect to " + event.getAddress() + ".");
+        }
     }
 
     private void reset(CommandSender sender, List<String> args) {
@@ -194,6 +291,35 @@ final class BeezyCommand implements TabExecutor {
             sender.sendMessage(ChatColor.YELLOW + "Sent to " + sent + " of " + targets
                     + " Beezy players; the others switched this feature off.");
         }
+    }
+
+    /** Three block coordinates from {@code args[from..from+2]}; {@code ~} means the sender's own. */
+    private static int[] coords(List<String> args, int from, Location here) {
+        return new int[] {
+            coord(args.get(from), here == null ? null : here.getBlockX()),
+            coord(args.get(from + 1), here == null ? null : here.getBlockY()),
+            coord(args.get(from + 2), here == null ? null : here.getBlockZ()),
+        };
+    }
+
+    /** {@code #rrggbb} or a chat colour name such as {@code red} or {@code dark_aqua}. */
+    static Color color(String arg) {
+        if (arg.startsWith("#") && arg.length() == 7) {
+            try {
+                return new Color(Integer.parseInt(arg.substring(1), 16));
+            } catch (NumberFormatException ignored) {
+                // fall through to the error below
+            }
+        }
+        try {
+            Color c = TeamSync.rgb(ChatColor.valueOf(arg.toUpperCase(Locale.ROOT)));
+            if (c != null) {
+                return c;
+            }
+        } catch (IllegalArgumentException ignored) {
+            // not a colour name
+        }
+        throw new IllegalArgumentException("Not a colour: " + arg + " (use #rrggbb or a name like red)");
     }
 
     private static int coord(String arg, Integer own) {
@@ -277,8 +403,8 @@ final class BeezyCommand implements TabExecutor {
                     options.add(p.getName());
                 }
             }
-        } else if (args.length == 3 && args[0].equalsIgnoreCase("waypoint")) {
-            options.addAll(WAYPOINT_ACTIONS);
+        } else if (args.length == 3 && (args[0].equalsIgnoreCase("waypoint") || args[0].equalsIgnoreCase("beam"))) {
+            options.addAll(MARKER_ACTIONS);
         } else {
             return Collections.emptyList();
         }
